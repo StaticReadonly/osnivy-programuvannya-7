@@ -13,10 +13,11 @@ public class WordFrequency {
                 "text3.txt",
                 "text4.txt"
         };
+        int threads = 4;
 
         //Multiple threads
         try {
-            ArrayList<String> rarestWords = rarestWords(filenames);
+            ArrayList<String> rarestWords = rarestWords(filenames, threads);
             System.out.println("Rarest words in multiple threads:");
             for (String word : rarestWords) {
                 System.out.println(word);
@@ -37,33 +38,47 @@ public class WordFrequency {
         }
     }
 
-    public static ArrayList<String> rarestWords(String[] filenames) throws IOException {
+    public static ArrayList<String> rarestWords(String[] filenames, int threadsCount) throws IOException {
         Map<String, Integer> wordFrequency = new HashMap<>();
-        Thread[] threads = new Thread[filenames.length];
+        Thread[] threads = new Thread[threadsCount];
 
-        for(int i = 0; i < filenames.length; i++){
-            final String filename = filenames[i];
-            threads[i] = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            String[] words = line.trim().split("(\\s*[,\\-+%#№=/.!?*:$^`;\"&\\[\\]\\(\\)\\{\\}]\\s*)|(\\s+)");
+        for(int i = 0; i < filenames.length; ){
+            for(int j = 0; j < threads.length; j++){
+                if (i >= filenames.length)
+                    break;
 
-                            for (String word : words) {
-                                synchronized (wordFrequency){
-                                    wordFrequency.put(word, wordFrequency.getOrDefault(word, 0) + 1);
+                if(threads[j] == null || !threads[j].isAlive()){
+                    final String filename = filenames[i];
+                    System.out.println("Thread created" );
+                    threads[j] = new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
+                                String line;
+                                while ((line = reader.readLine()) != null) {
+                                    String[] words = line.trim().split("(\\s*[,\\-+%#№=/.!?*:$^`;\"&\\[\\]\\(\\)\\{\\}]\\s*)|(\\s+)");
+
+                                    for (String word : words) {
+                                        synchronized (wordFrequency){
+                                            wordFrequency.put(word, wordFrequency.getOrDefault(word, 0) + 1);
+                                        }
+                                    }
                                 }
                             }
+                            catch (Exception e){
+                                System.out.println("Error happened");
+                            }
+
+                            synchronized (System.out){
+                                System.out.println("Thread end");
+                            }
                         }
-                    }
-                    catch (Exception e){
-                        System.out.println("Error happened");
-                    }
+                    });
+                    threads[j].start();
+                    i++;
                 }
-            });
-            threads[i].start();
+
+            }
         }
 
         for(var t : threads){
